@@ -1,0 +1,59 @@
+services:
+  server:
+    image: judge0/judge0:latest
+    restart: always
+    privileged: true
+    volumes:
+      - judge0-data:/judge0
+    ports:
+      - "2358:2358"
+    depends_on:
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_started
+    environment:
+      DATABASE_URL: postgres://judge0:judge0@db:5432/judge0
+      REDIS_URL: redis://redis:6379
+      REDIS_HOST: "redis"
+      ENABLE_RLIMITS: "true"
+      ENABLE_PER_PROCESS_AND_THREAD_TIME_LIMIT: "true"
+      ENABLE_PER_PROCESS_AND_THREAD_MEMORY_LIMIT: "true"
+
+  workers:
+    image: judge0/judge0:latest
+    restart: always
+    privileged: true
+    command: ["./scripts/workers"]
+    volumes:
+      - judge0-data:/judge0
+    depends_on:
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_started
+    environment:
+      DATABASE_URL: postgres://judge0:judge0@db:5432/judge0
+      REDIS_URL: redis://redis:6379
+      REDIS_HOST: "redis"
+      ENABLE_RLIMITS: "true"
+      ENABLE_PER_PROCESS_AND_THREAD_TIME_LIMIT: "true"
+      ENABLE_PER_PROCESS_AND_THREAD_MEMORY_LIMIT: "true"
+
+  db:
+    image: postgres:13
+    environment:
+      POSTGRES_PASSWORD: judge0
+      POSTGRES_USER: judge0
+      POSTGRES_DB: judge0
+
+  redis:
+    image: redis:6
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  judge0-data:
